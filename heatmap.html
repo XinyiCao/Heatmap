@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Heat Map</title>
+        <script type="text/javascript" src="../lib/d3.v3.min.js" ></script>
+        <style type="text/css">
+         .axis path,
+         .axis line {
+             fill: none;
+             stroke: black;
+             shape-renderingL: crispEdges;
+         }
+
+         .axis text{
+             font-family: sans-serif;
+             font-size: 11px;
+         }
+
+    div.relative {
+          position: relative;
+          left:450px;
+          top:80px;
+            }
+
+        </style>
+    </head>
+    <body>
+        <script type="text/javascript" >
+
+         var margin = {top: 80, right: 160, bottom: 70, left: 60},
+             width = 960 - margin.left - margin.right,
+             height = 500 - margin.top - margin.bottom;
+
+
+         var x = d3.scale.linear().range([0, width]).domain([1, 12]),
+             y = d3.scale.linear().domain([2005, 2013]).range([height, 0]),
+             z = d3.scale.linear().range(["white", "red"]);
+
+// The size of the buckets in the CSV data file.
+// This could be inferred from the data if it weren't sparse.
+         var xyMargin = 5;
+         var xStep = x(2) - x(1)
+             yStep = y(2005) - y(2006);
+
+        
+
+         d3.csv("./heatmap.csv", function(error, datas){
+             if (error) throw error;
+
+  // Coerce the CSV data to the appropriate types.
+
+             var heatData = {};
+             var selectOptions = [];
+             datas.forEach(function(d){
+                 var newdict = {"Month": +d["Month"], "Year": +d["Year"], "Power":+d["Power"]};
+
+                 if (!(d["Zip Code"] in heatData)){
+                     heatData[d["Zip Code"]] = [];
+                     selectOptions.push(d["Zip Code"]);
+                 }
+                 heatData[d["Zip Code"]].push(newdict);
+
+             });
+
+             selectOptions.sort();
+
+  // Compute the scale domains.
+
+            //select box by onchange
+            d3.select("body").append("td")
+             var select = d3.select("body")
+                            .append("div").attr("class","relative")
+                            .append('select')
+                            .attr("class", "select")
+                           .on("change", onchange);
+                                       
+           d3.select("body").append("td")
+             var options = select.selectAll("option")
+                                 .data(selectOptions).enter()
+                                 .append("option")
+                                 .text(function(d){return d;}); 
+           
+             d3.select("body").append("br")
+             var svg = d3.select("body").append("svg")
+                         .attr("width", width + margin.left + margin.right)
+                         .attr("height", height + margin.top + margin.bottom)                      
+                         .append("g")
+                         .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+// Extend the x- and y-domain to fit the last bucket.
+  // For example, the y-bucket 3200 corresponds to values [3200, 3300].
+             curData = heatData["90077"];
+             z.domain(d3.extent(curData, function(d){return d.Power;}));
+             
+           
+
+// Display the tiles for each non-zero bucket.
+  // See http://bl.ocks.org/3074470 for an alternative implementation.
+             svg.selectAll(".tile").data(curData).enter().append("rect")
+                .attr("class", "tile")
+                .attr("x", function(d){return x(d.Month);})
+                .attr("y", function(d){return y(d.Year);})
+                .attr("width", xStep-xyMargin).attr("height", yStep-xyMargin)
+                .attr("fill", function(d){return z(d.Power);});
+
+
+// Add a legend for the color values.
+             var legend = svg.selectAll(".legend")
+                             .data(z.ticks(10).slice(1).reverse())
+                             .enter().append("g")
+                             .attr("class", "legend")
+                             .attr("transform", function(d, i){
+                                 return "translate(" + (width+90)+","+(20+i*20)+")";
+                             });
+             legend.append("rect")
+                   .attr("width", 20)
+                   .attr("height", 20)
+                   .attr("fill", z);
+             legend.append("text")
+                   .attr("x", 26)
+                   .attr("y", 10)
+                   .attr("dy",".35em")
+                   .text(String);
+              svg.append("text")
+                   .attr("class", "label")
+                   .attr("x", width + 95)
+                   .attr("y", margin.top - 75)
+                   .attr("dy", ".35em")
+                   .style("font-weight", "bold")
+                   .style("font-size", "16px")
+                   .text("kWh");
+             svg.append("text")
+                   .attr("transform", "translate("+(width/2)+", "+(margin.top-30)+")")
+                   .attr("x", -40)
+                   .attr("y", -100)
+                   .style("font-weight", "bold")
+                   .style("font-size", "22px")
+                   .text("Water Usage Heapmap");
+
+
+             var xAxis = d3.svg.axis()
+                           .scale(x)
+                           .orient("bottom")
+                           .tickFormat(function(d){
+                               if (d==1) return "Jan";
+                               if (d==2) return "Feb";
+                               if (d==3) return "Mar";
+                               if (d==4) return "Apr";
+                               if (d==5) return "May";
+                               if (d==6) return "Jun";
+                               if (d==7) return "Jul";
+                               if (d==8) return "Aug";
+                               if (d==9) return "Sep";
+                               if (d==10) return "Oct";
+                               if (d==11) return "Nov";
+                               if (d==12) return "Dec";
+                           });
+
+             var yAxis = d3.svg.axis()
+                           .scale(y).orient("left")
+                           .tickFormat(function(d){return d.toString();});
+
+  // Add an x-axis with label.
+
+             svg.append("g")
+                .attr("class", "x axis")
+                .attr("transform", "translate("+(xStep/2)+"," + (height+yStep) + ")")
+                 .call(xAxis)
+                 .append("text")
+                 .attr("class", "label")
+                 .attr("x", width+xStep-5)
+                 .attr("y", 5)
+                 .style("font-size", "12px")
+                 .style("font-weight", "bold")
+                 .attr("text-anchor", "end")
+                 .text("Month");
+
+  // Add a y-axis with label.
+             svg.append("g")
+                .attr("class", "y axis")
+                .attr("transform", "translate("+(-xyMargin) +","+(yStep/2)+")")
+                .call(yAxis)
+                .append("text")
+                .attr("class", "label")
+                .attr("x", -20)
+                .attr("y", -15)
+                .style("font-size", "12px")
+                .style("font-weight", "bold")
+                .text("Year");
+
+
+             function onchange(){
+                 var selectValue = d3.select("select").property("value");
+                 var tmp = heatData[selectValue];
+                 z.domain(d3.extent(tmp, function(d){return d.Power;}));
+                 svg.selectAll(".tile").data(tmp)
+                    .attr("x", function(d){return x(d.Month)})
+                    .attr("y", function(d){return y(d.Year)})
+                    .attr("width", xStep-xyMargin)
+                    .attr("height", yStep-xyMargin)
+                    .attr("fill", function(d){return z(d.Power)})
+
+
+                 leg = svg.selectAll(".legend").data(z.ticks(10).slice(1).reverse())
+
+                 leg.select("rect").attr("fill", z)
+                 leg.select("text").attr(String)
+                 
+             };
+
+         });
+
+        </script>
+    </body>
+</html>
